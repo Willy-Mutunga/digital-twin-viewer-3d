@@ -93,23 +93,44 @@ function Equipment({ position, type, status }: any) {
   );
 }
 
-// Simplified Data Connection Line
+// Animated Data Stream
 function DataStream({ start, end }: any) {
   const points = useMemo(() => {
-    return [
+    const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(...start),
-      new THREE.Vector3((start[0] + end[0]) / 2, Math.max(start[1], end[1]) + 1, (start[2] + end[2]) / 2),
+      new THREE.Vector3((start[0] + end[0]) / 2, Math.max(start[1], end[1]) + 2, (start[2] + end[2]) / 2),
       new THREE.Vector3(...end),
-    ];
+    ]);
+    return curve.getPoints(50);
   }, [start, end]);
 
-  const lineGeometry = useMemo(() => {
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    return geometry;
-  }, [points]);
+  const lineRef = useRef<THREE.BufferGeometry>(null);
+  
+  useFrame((state) => {
+    if (lineRef.current) {
+      const time = state.clock.elapsedTime;
+      const positions = lineRef.current.attributes.position.array as Float32Array;
+      
+      for (let i = 0; i < positions.length; i += 3) {
+        const alpha = (Math.sin(time * 2 + i * 0.1) + 1) / 2;
+        positions[i + 1] += Math.sin(time + i * 0.1) * 0.01;
+      }
+      lineRef.current.attributes.position.needsUpdate = true;
+    }
+  });
 
   return (
-    <primitive object={new THREE.Line(lineGeometry, new THREE.LineBasicMaterial({ color: "#00BCD4", transparent: true, opacity: 0.6 }))} />
+    <line>
+      <bufferGeometry ref={lineRef}>
+        <bufferAttribute
+          attach="attributes-position"
+          count={points.length}
+          array={new Float32Array(points.flatMap(p => [p.x, p.y, p.z]))}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <lineBasicMaterial color="#00BCD4" transparent opacity={0.6} />
+    </line>
   );
 }
 
@@ -149,7 +170,7 @@ function Scene() {
         <Equipment key={index} {...equip} />
       ))}
 
-      {/* Data Connection Lines */}
+      {/* Data Streams */}
       <DataStream start={[-3, 2, -3]} end={[1, 1, 1]} />
       <DataStream start={[3, 1.5, -3]} end={[-1, 1, 1]} />
       <DataStream start={[0, 3, -3]} end={[0, 1, 3]} />
