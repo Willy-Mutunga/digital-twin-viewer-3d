@@ -95,43 +95,32 @@ function Equipment({ position, type, status }: any) {
 
 // Animated Data Stream
 function DataStream({ start, end }: any) {
-  const points = useMemo(() => {
+  const line = useMemo(() => {
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(...start),
       new THREE.Vector3((start[0] + end[0]) / 2, Math.max(start[1], end[1]) + 2, (start[2] + end[2]) / 2),
       new THREE.Vector3(...end),
     ]);
-    return curve.getPoints(50);
+    const points = curve.getPoints(50);
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = new THREE.LineBasicMaterial({ 
+      color: "#00BCD4", 
+      transparent: true, 
+      opacity: 0.6 
+    });
+    return new THREE.Line(geometry, material);
   }, [start, end]);
 
-  const lineRef = useRef<THREE.BufferGeometry>(null);
+  const lineRef = useRef<THREE.Line>(null);
   
   useFrame((state) => {
     if (lineRef.current) {
       const time = state.clock.elapsedTime;
-      const positions = lineRef.current.attributes.position.array as Float32Array;
-      
-      for (let i = 0; i < positions.length; i += 3) {
-        const alpha = (Math.sin(time * 2 + i * 0.1) + 1) / 2;
-        positions[i + 1] += Math.sin(time + i * 0.1) * 0.01;
-      }
-      lineRef.current.attributes.position.needsUpdate = true;
+      lineRef.current.position.y = Math.sin(time * 0.5) * 0.1;
     }
   });
 
-  return (
-    <line>
-      <bufferGeometry ref={lineRef}>
-        <bufferAttribute
-          attach="attributes-position"
-          count={points.length}
-          array={new Float32Array(points.flatMap(p => [p.x, p.y, p.z]))}
-          itemSize={3}
-        />
-      </bufferGeometry>
-      <lineBasicMaterial color="#00BCD4" transparent opacity={0.6} />
-    </line>
-  );
+  return <primitive ref={lineRef} object={line} />;
 }
 
 // Main Scene Component
